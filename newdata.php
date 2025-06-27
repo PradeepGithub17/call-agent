@@ -6,7 +6,7 @@ date_default_timezone_set('Europe/London');
 $agent  = $_GET['agent']  ?? 'Unknown';
 $caller = $_GET['caller'] ?? 'Unknown';
 
-$conn = mysqli_connect('localhost', 'fromzero_santi', 'Santivoip4321', 'fromzero_morevitility');
+$conn = mysqli_connect('localhost', 'root', '$Provis@2025', 'fromzero_morevitility');
 if ($conn && $agent !== 'Unknown') {
     $eAgent = mysqli_real_escape_string($conn, $agent);
     $sql = "SELECT role FROM ausers WHERE user = '$eAgent' LIMIT 1";

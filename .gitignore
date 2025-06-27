@@ -65,3 +65,7 @@ yarn-error.log*
 config.php
 database.php
 credentials.php
+
+# Google Sheets credentials
+credentials/
+google-sheets-credentials.json

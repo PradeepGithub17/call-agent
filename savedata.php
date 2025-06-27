@@ -2,8 +2,8 @@
 date_default_timezone_set('Europe/London');
 /* === DB config === */
 $dbHost = 'localhost';
-$dbUser = 'fromzero_santi';
-$dbPass = 'Santivoip4321';
+$dbUser = 'root';
+$dbPass = '$Provis@2025'; // use environment variable in production
 $dbName = 'fromzero_morevitility';
 
 header('Content-Type: application/json');
