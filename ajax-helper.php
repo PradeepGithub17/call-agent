@@ -292,9 +292,10 @@ function logAction($reference)
     $ownerCaller = '0' . substr(substr($caller, 3), 0, -1); // 0 + drop first 3 + drop last
     $eOwnerCaller = mysqli_real_escape_string($conn, $ownerCaller);
 
-    if ($action === 'Block') {
+    if ($action === 'block') {
         $blockedNumber = substr(substr($caller, 3), 0, -1); // same transformation
-        $eBlockedNumber = mysqli_real_escape_string($conn, $blockedNumber);
+        // $eBlockedNumber = mysqli_real_escape_string($conn, $blockedNumber);
+        $eBlockedNumber = $caller;
 
         $sqlBlock = "
             INSERT INTO blocknum (number, agent)
