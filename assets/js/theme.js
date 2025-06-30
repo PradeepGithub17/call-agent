@@ -22,3 +22,39 @@ function updateIcons(isDarkMode) {
         moonIcon.classList.add('hidden');
     }
 }
+
+$(document).ready(function ($) {
+    // Collapsible example boxes functionality
+    $('.example-toggle').on('click', function () {
+        const targetId = $(this).data('target');
+        const $content = $('#' + targetId);
+        const $arrow = $(this).find('.arrow-icon');
+
+        // Prevent multiple rapid clicks
+        if ($content.is(':animated')) {
+            return;
+        }
+
+        if ($content.hasClass('hidden')) {
+            // Show content with smooth animation
+            $content.removeClass('hidden').css('display', 'none').slideDown({
+                duration: 500,
+                easing: 'swing',
+                complete: function () {
+                    $(this).css('display', '');
+                }
+            });
+            $arrow.addClass('rotate-90');
+        } else {
+            // Hide content with smooth animation
+            $content.slideUp({
+                duration: 500,
+                easing: 'swing',
+                complete: function () {
+                    $(this).addClass('hidden');
+                }
+            });
+            $arrow.removeClass('rotate-90');
+        }
+    });
+});

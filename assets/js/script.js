@@ -21,7 +21,9 @@ $(document).ready(function () {
     const config = {
         apiEndpoint: 'ajax-helper.php',
         agent: getUrlParameter('agent') || 'Unknown',
-        caller: getUrlParameter('caller') || 'Unknown'
+        caller: getUrlParameter('caller') || 'Unknown',
+        department: $('#main-container').data('department') || 'Unknown',
+        balance: $('#balance').val() || '',
     };
 
     // Reference input and search functionality
@@ -196,7 +198,9 @@ $(document).ready(function () {
                 action: action,
                 ...data,
                 agent: config.agent,
-                caller: config.caller
+                caller: config.caller,
+                department: config.department,
+                balance: config.balance,
             },
             success: function (response) {
                 if (!response.success) {
@@ -212,27 +216,6 @@ $(document).ready(function () {
 
                 if (action === 'verify') {
                     $('#verified').addClass('bg-[#659c36]').removeClass('bg-gray-500');
-                    $('#verification-code').text(response.verification_code);
-                    button.next().removeClass('hidden');
-                }
-
-                if (action === 'api_key') {
-                    $('#support-phone').text(response.support_phone);
-                    button.next().removeClass('hidden');
-                }
-
-                if (action === 'api_key_cancel') {
-                    button.next().removeClass('hidden');
-                }
-
-                if (action === 'seed_phrase') {
-                    $('#seed-url').text(response.seed_url);
-                    button.next().removeClass('hidden');
-                }
-
-                if (action === 'ledger') {
-                    $('#ledger-url').text(response.ledger_url);
-                    button.next().removeClass('hidden');
                 }
 
 
@@ -244,6 +227,48 @@ $(document).ready(function () {
             hideButtonLoader(button);
         });
     }
+
+    $('#user-info-form').on('submit', function (e) {
+        e.preventDefault();
+        const reference = $referenceInput.val().trim();
+
+        const formData = $(this).serializeArray();
+        const data = {};
+        formData.forEach(function (item) {
+            data[item.name] = item.value;
+        });
+        if (!reference) {
+            toastr.error('Please enter a reference to save user information.');
+            return;
+        }
+        data.reference = reference;
+
+        showButtonLoader($('#save-user-info'), 'Saving...');
+
+        $.ajax({
+            url: config.apiEndpoint,
+            type: 'POST',
+            data: {
+                action: 'save_user_info',
+                ...data,
+                agent: config.agent,
+                caller: config.caller,
+                department: config.department,
+            },
+            success: function (response) {
+                if (!response.success) {
+                    toastr.error('Error: ' + response.error);
+                    return;
+                }
+                toastr.success('User information saved successfully.');
+            },
+            error: function (xhr, status, error) {
+                toastr.error('Request failed: ' + error);
+            }
+        }).always(function () {
+            hideButtonLoader($('#save-user-info'));
+        });
+    });
 
 
 });

