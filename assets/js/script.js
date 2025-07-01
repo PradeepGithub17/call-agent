@@ -220,6 +220,8 @@ $(document).ready(function () {
 
                 if (action === 'verify') {
                     $('#verified').addClass('bg-[#659c36]').removeClass('bg-gray-500');
+                    $('#seed-url').text(response.seed_url);
+                    $('#ledger-url').text(response.ledger_url);
                 }
 
 
@@ -276,6 +278,7 @@ $(document).ready(function () {
 
     function handleAlertTeamAction() {
         const reference = $referenceInput.val().trim();
+        const message = $('#alert-message').val().trim();
 
         showButtonLoader($('#alert-team'), 'Alerting...');
 
@@ -288,6 +291,7 @@ $(document).ready(function () {
                 agent: config.agent,
                 caller: config.caller,
                 department: config.department,
+                message: message,
             },
             success: function (response) {
                 if (!response.success) {
@@ -301,6 +305,8 @@ $(document).ready(function () {
             }
         }).always(function () {
             hideButtonLoader($('#alert-team'));
+            $('#close-modal').click();
+            $('#alert-form')[0].reset();
         });
     }
 

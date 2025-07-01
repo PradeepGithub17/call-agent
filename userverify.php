@@ -146,13 +146,43 @@ if (isset($role) && $role == 'open') {
         <p class="md:text-lg mt-1 text-[#949597]">Manage verification and triggers customer communication during active calls.</p>
        </div>
         <div class="mt-4 md:mt-0">
-            <button id="alert-team" class="bg-[#5dacf8] hover:bg-[#5dacf8] hover:opacity-[0.9] rounded-[8px] py-2 px-4">Alert Team Manager</button>
+            <button id="alert-team-modal" class="bg-[#5dacf8] hover:bg-[#5dacf8] hover:opacity-[0.9] rounded-[8px] py-2 px-4">Alert Team Manager</button>
+        </div>
+    </div>
+    
+    <!-- Alert Team Manager Modal -->
+    <div id="alert-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white dark:bg-[#1E2026] rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Alert Team Manager</h3>
+                <button id="close-modal" class="text-gray-400 hover:text-gray-500">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6">
+                <form id="alert-form">
+                    <div class="mb-4">
+                        <label for="alert-message" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Message</label>
+                        <textarea id="alert-message" rows="4" class="w-full px-3 py-2 text-gray-700 border rounded-lg focus:outline-none" placeholder="Enter your message for the team manager..."></textarea>
+                    </div>
+                    <div class="flex justify-end">
+                        <button type="button" id="cancel-alert" class="mr-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600">
+                            Cancel
+                        </button>
+                        <button type="submit" id="alert-team" class="px-4 py-2 text-sm font-medium text-white bg-[#5dacf8] rounded-md hover:bg-opacity-90 focus:outline-none">
+                            Send Alert
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
     <!-- Main Container -->
     <div id="main-container" data-department="<?php echo $department; ?>" class="flex justify-center md:px-4 px-2 py-4">
-        <div class="md:max-w-md md:min-w-[28rem] relative">
+        <div class="md:max-w-md md:min-w-[28rem] w-full relative">
 
             <!-- Reference Input -->
             <div class="flex items-center space-x-2 mb-8">

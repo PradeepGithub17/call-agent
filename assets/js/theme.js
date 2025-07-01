@@ -58,3 +58,33 @@ $(document).ready(function ($) {
         }
     });
 });
+
+// Alert Team Manager Modal functionality
+document.addEventListener('DOMContentLoaded', function () {
+    const alertTeamBtn = document.getElementById('alert-team-modal');
+    const alertModal = document.getElementById('alert-modal');
+    const closeModalBtn = document.getElementById('close-modal');
+    const cancelAlertBtn = document.getElementById('cancel-alert');
+
+    // Show modal when alert team button is clicked
+    alertTeamBtn.addEventListener('click', function () {
+        alertModal.classList.remove('hidden');
+    });
+
+    // Hide modal when close button is clicked
+    closeModalBtn.addEventListener('click', function () {
+        alertModal.classList.add('hidden');
+    });
+
+    // Hide modal when cancel button is clicked
+    cancelAlertBtn.addEventListener('click', function () {
+        alertModal.classList.add('hidden');
+    });
+
+    // Close modal when clicking outside
+    alertModal.addEventListener('click', function (e) {
+        if (e.target === alertModal) {
+            alertModal.classList.add('hidden');
+        }
+    });
+});
