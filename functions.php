@@ -178,7 +178,7 @@ function getReferenceTracking($reference)
     $reference = mysqli_real_escape_string($conn, $reference);
 
     // Join with ausers table to get agent name
-    $sql = "SELECT rt.*,au.role, au.user as agent_name 
+    $sql = "SELECT rt.*,au.role, au.name as agent_name 
             FROM reference_tracking rt
             LEFT JOIN ausers au ON rt.agent = au.id
             WHERE rt.reference = '$reference'";
@@ -459,4 +459,132 @@ function getUserInfo($reference)
 
     closeDbConnection($conn);
     return false;
+}
+
+
+/**
+ * Function to increment usage count for a reference
+ *
+ * @param string $reference Reference identifier
+ * @return bool|array Success status or error information
+ */
+function incrementUsageCount($reference)
+{
+    $conn = getDbConnection();
+    try {
+        // Sanitize input
+        $reference = mysqli_real_escape_string($conn, $reference);
+
+        $sql = "UPDATE reference_tracking 
+                SET usage_count = usage_count + 1, 
+                    updated_at = CURRENT_TIMESTAMP 
+                WHERE reference = '$reference'";
+
+        if (mysqli_query($conn, $sql)) {
+            closeDbConnection($conn);
+            return [
+                'success' => true,
+                'message' => 'Usage count incremented successfully',
+                'reference' => $reference
+            ];
+        } else {
+            throw new Exception("Increment error: " . mysqli_error($conn));
+        }
+    } catch (Exception $e) {
+        error_log('Usage count increment error: ' . $e->getMessage());
+        closeDbConnection($conn);
+        return [
+            'success' => false,
+            'error' => $e->getMessage(),
+            'reference' => $reference
+        ];
+    }
+}
+
+/**
+ * Function to block a reference by setting its status to 0
+ *
+ * @param string $reference Reference identifier
+ * @return bool|array Success status or error information
+ */
+function blockReference($reference)
+{
+    $conn = getDbConnection();  
+    try {
+        // Sanitize input
+        $reference = mysqli_real_escape_string($conn, $reference);
+
+        $sql = "UPDATE reference_tracking 
+                SET status = '0', 
+                    updated_at = CURRENT_TIMESTAMP 
+                WHERE reference = '$reference'";
+
+        if (mysqli_query($conn, $sql)) {
+            closeDbConnection($conn);
+            return [
+                'success' => true,
+                'message' => 'Reference blocked successfully',
+                'reference' => $reference
+            ];
+        } else {
+            throw new Exception("Block error: " . mysqli_error($conn));
+        }
+    } catch (Exception $e) {
+        error_log('Reference blocking error: ' . $e->getMessage());
+        closeDbConnection($conn);
+        return [
+            'success' => false,
+            'error' => $e->getMessage(),
+            'reference' => $reference
+        ];
+    }
+}
+
+function getLastReferenceTracking()
+{
+    $conn = getDbConnection();
+    
+    $sql = "SELECT rt.*, au.role, au.name AS agent_name 
+            FROM reference_tracking rt
+            LEFT JOIN ausers au ON rt.agent = au.id
+            ORDER BY rt.id DESC
+            LIMIT 1";
+    $result = mysqli_query($conn, $sql);
+
+    if ($result && mysqli_num_rows($result) > 0) {
+        $data = mysqli_fetch_assoc($result);
+        closeDbConnection($conn);
+        return $data;
+    }
+
+    closeDbConnection($conn);
+    return false;
+}
+
+/**
+ * Helper to get user info by agent ID
+ */
+function getUserInfoByAgent($conn, $agent_id) {
+    $sql = "SELECT u.* 
+            FROM user_info AS u 
+            JOIN reference_tracking AS rt ON u.reference = rt.reference 
+            WHERE rt.agent = '$agent_id' 
+            LIMIT 1";
+    $result = mysqli_query($conn, $sql);
+    return mysqli_fetch_assoc($result) ?: false;
+}
+
+/**
+ * Helper to get agent ID by caller number
+ */
+function getAgentIdByCaller($conn, $caller) {
+    $sql = "SELECT au.id 
+            FROM ownersmsdata AS ow 
+            JOIN ausers AS au ON ow.agent = au.user 
+            WHERE ow.number = '$caller' 
+            ORDER BY ow.id DESC 
+            LIMIT 1";
+    $result = mysqli_query($conn, $sql);
+    $row = mysqli_fetch_assoc($result);
+    return $row['id'] ?? false;
 }

