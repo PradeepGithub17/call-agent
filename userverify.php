@@ -3,14 +3,14 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 date_default_timezone_set('Europe/London');
 require_once 'functions.php';
-
+require_once 'config/db_config.php';
 //exit("Hello World");
 $agent  = $_GET['agent']  ?? 'Unknown';
 $caller = $_GET['caller'] ?? 'Unknown';
 
 $department = 'Unknown';
 
-$conn = mysqli_connect('localhost', 'root', '$Provis@2025', 'fromzero_morevitility');
+$conn = getDbConnection();
 if ($conn && $agent !== 'Unknown') {
     $eAgent = mysqli_real_escape_string($conn, $agent);
     $sql = "SELECT au.role, au.adminid, ad.department FROM ausers as au JOIN adminuser as ad ON au.adminid = ad.id WHERE user = '$eAgent' LIMIT 1";
