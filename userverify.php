@@ -8,7 +8,7 @@ require_once 'functions.php';
 $agent  = $_GET['agent']  ?? 'Unknown';
 $caller = $_GET['caller'] ?? 'Unknown';
 
-$department = '';
+$department = 'Unknown';
 
 $conn = mysqli_connect('localhost', 'root', '$Provis@2025', 'fromzero_morevitility');
 if ($conn && $agent !== 'Unknown') {
@@ -140,9 +140,14 @@ if (isset($role) && $role == 'open') {
             </button>
         </div>
     </header>
-    <div class="px-4 mt-3 mb-4">
-        <h1 class="md:text-3xl text-lg font-bold text-[#232323] dark:text-white">OpenFlow Dashboard</h1>
+    <div class="px-4 mt-3 mb-4 md:text-start text-center md:flex justify-between items-center">
+       <div>
+         <h1 class="md:text-3xl text-lg font-bold text-[#232323] dark:text-white">OpenFlow Dashboard</h1>
         <p class="md:text-lg mt-1 text-[#949597]">Manage verification and triggers customer communication during active calls.</p>
+       </div>
+        <div class="mt-4 md:mt-0">
+            <button id="alert-team" class="bg-[#5dacf8] hover:bg-[#5dacf8] hover:opacity-[0.9] rounded-[8px] py-2 px-4">Alert Team Manager</button>
+        </div>
     </div>
 
     <!-- Main Container -->
@@ -167,11 +172,11 @@ if (isset($role) && $role == 'open') {
 
             <!-- Buttons and Info Boxes -->
 
-            <?php if ($agent === 'Unknown' || $caller === 'Unknown'): ?>
+            <?php if ($agent === 'Unknown' || $caller === 'Unknown' || $department === 'Unknown'): ?>
                 <div class="absolute inset-0 bg-gray-900 bg-opacity-70 flex flex-col items-center justify-center z-50 rounded">
                     <div class="bg-red-600 text-white px-6 py-4 rounded shadow-lg text-center max-w-xs">
                         <strong>Warning:</strong><br>
-                        Agent or Caller information is missing from the URL.<br>
+                        Agent or Caller or department information is missing from the URL.<br>
                     </div>
                 </div>
             <?php endif; ?>

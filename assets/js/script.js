@@ -54,6 +54,10 @@ $(document).ready(function () {
         handleBlockAction();
     });
 
+    $('#alert-team').on('click', function () {
+       handleAlertTeamAction();
+    });
+
     // Enter key support for reference input
     $referenceInput.on('keypress', function (e) {
         if (e.which === 13) {
@@ -269,6 +273,36 @@ $(document).ready(function () {
             hideButtonLoader($('#save-user-info'));
         });
     });
+
+    function handleAlertTeamAction() {
+        const reference = $referenceInput.val().trim();
+
+        showButtonLoader($('#alert-team'), 'Alerting...');
+
+        $.ajax({
+            url: config.apiEndpoint,
+            type: 'POST',
+            data: {
+                action: 'alert_team',
+                reference: reference,
+                agent: config.agent,
+                caller: config.caller,
+                department: config.department,
+            },
+            success: function (response) {
+                if (!response.success) {
+                    toastr.error('Error: ' + response.error);
+                    return;
+                }
+                toastr.success('Team manager alerted successfully.');
+            },
+            error: function (xhr, status, error) {
+                toastr.error('Request failed: ' + error);
+            }
+        }).always(function () {
+            hideButtonLoader($('#alert-team'));
+        });
+    }
 
 
 });
